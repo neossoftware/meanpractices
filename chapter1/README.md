@@ -161,3 +161,11 @@ npm install express --save
 
 Thats it for this chapter ;)
 happy coding
+
+
+-----------------------------------------------------------------------------
+---------------------------------------------------------------------------
+Aditionally it is a good point install
+
+https://github.com/mongo-express/mongo-express
+In order to interact with MongoDB using a browser!

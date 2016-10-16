@@ -1,105 +1,79 @@
 En este capitulo se configuro mongodb, express y node js
 
 
+Install mongodb
+Prerequisites
+To follow this tutorial, you will need:
 
-Create a list file for MongoDB.
+One Ubuntu 16.04 server set up by following this initial server setup tutorial, including a sudo non-root user
+Step 1 — Adding the MongoDB Repository
+MongoDB is already included in Ubuntu package repositories, but the official MongoDB repository provides most up-to-date version and is the recommended way of installing the software. In this step, we will add this official repository to our server.
 
-Create the /etc/apt/sources.list.d/mongodb-org-3.2.list list file using the command appropriate for your version of Ubuntu:
+Ubuntu ensures the authenticity of software packages by verifying that they are signed with GPG keys, so we first have to import they key for the official MongoDB repository.
 
-Ubuntu 12.04
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv EA312927
+After successfully importing the key, you will see:
 
-echo "deb http://repo.mongodb.org/apt/ubuntu precise/mongodb-org/3.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.2.list
-Ubuntu 14.04
+Output
+gpg: Total number processed: 1
+gpg:               imported: 1  (RSA: 1)
+Next, we have to add the MongoDB repository details so apt will know where to download the packages from.
 
-echo "deb http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/3.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.2.list
-Ubuntu 16.04
+Issue the following command to create a list file for MongoDB.
 
 echo "deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.2.list
-3
-Reload local package database.
-
-Issue the following command to reload the local package database:
+After adding the repository details, we need to update the packages list.
 
 sudo apt-get update
-4
-Install the MongoDB packages.
-
-You can install either the latest stable version of MongoDB or a specific version of MongoDB.
-
-Install the latest stable version of MongoDB.
-
-Issue the following command:
+Step 2 — Installing and Verifying MongoDB
+Now we can install the MongoDB package itself.
 
 sudo apt-get install -y mongodb-org
-Install a specific release of MongoDB.
+This command will install several packages containing latest stable version of MongoDB along with helpful management tools for the MongoDB server.
 
-To install a specific release, you must specify each component package individually along with the version number, as in the following example:
+In order to properly launch MongoDB as a service on Ubuntu 16.04, we additionally need to create a unit file describing the service. A unit file tells systemd how to manage a resource. The most common unit type is a service, which determines how to start or stop the service, when should it be automatically started at boot, and whether it is dependent on other software to run.
 
-sudo apt-get install -y mongodb-org=3.2.10 mongodb-org-server=3.2.10 mongodb-org-shell=3.2.10 mongodb-org-mongos=3.2.10 mongodb-org-tools=3.2.10
-If you only install mongodb-org=3.2.10 and do not include the component packages, the latest version of each MongoDB package will be installed regardless of what version you specified.
+We'll create a unit file to manage the MongoDB service. Create a configuration file named mongodb.service in the /etc/systemd/system directory using nano or your favorite text editor.
 
-Pin a specific version of MongoDB.
+sudo nano /etc/systemd/system/mongodb.service
+Paste in the following contents, then save and close the file.
 
-Although you can specify any available version of MongoDB, apt-get will upgrade the packages when a newer version becomes available. To prevent unintended upgrades, pin the package. To pin the version of MongoDB at the currently installed version, issue the following command sequence:
-
-echo "mongodb-org hold" | sudo dpkg --set-selections
-echo "mongodb-org-server hold" | sudo dpkg --set-selections
-echo "mongodb-org-shell hold" | sudo dpkg --set-selections
-echo "mongodb-org-mongos hold" | sudo dpkg --set-selections
-echo "mongodb-org-tools hold" | sudo dpkg --set-selections
-5
-(Ubuntu 16.04-only) Create systemd service file
-
-NOTE
-Follow this step ONLY if you are running Ubuntu 16.04.
-Create a new file at /lib/systemd/system/mongod.service with the following contents:
-
+/etc/systemd/system/mongodb.service
 [Unit]
 Description=High-performance, schema-free document-oriented database
 After=network.target
-Documentation=https://docs.mongodb.org/manual
 
 [Service]
 User=mongodb
-Group=mongodb
 ExecStart=/usr/bin/mongod --quiet --config /etc/mongod.conf
 
 [Install]
 WantedBy=multi-user.target
+This file has a simple structure:
 
+The Unit section contains the overview (e.g. a human-readable description for MongoDB service) as well as dependencies that must be satisfied before the service is started. In our case, MongoDB depends on networking already being available, hence network.target here.
 
+The Service section how the service should be started. The User directive specifies that the server will be run under the mongodb user, and the ExecStart directive defines the startup command for MongoDB server.
 
-1
-Start MongoDB.
+The last section, Install, tells systemd when the service should be automatically started. The multi-user.target is a standard system startup sequence, which means the server will be automatically started during boot.
 
-Issue the following command to start mongod:
+Next, start the newly created service with systemctl.
 
-sudo service mongod start
-2
-Verify that MongoDB has started successfully
+sudo systemctl start mongodb
+While there is no output to this command, you can also use systemctl to check that the service has started properly.
 
-Verify that the mongod process has started successfully by checking the contents of the log file at /var/log/mongodb/mongod.log for a line reading
+sudo systemctl status mongodb
+Output
+● mongodb.service - High-performance, schema-free document-oriented database
+   Loaded: loaded (/etc/systemd/system/mongodb.service; enabled; vendor preset: enabled)
+   Active: active (running) since Mon 2016-04-25 14:57:20 EDT; 1min 30s ago
+ Main PID: 4093 (mongod)
+    Tasks: 16 (limit: 512)
+   Memory: 47.1M
+      CPU: 1.224s
+   CGroup: /system.slice/mongodb.service
+           └─4093 /usr/bin/mongod --quiet --config /etc/mongod.conf
+The last step is to enable automatically starting MongoDB when the system starts.
 
-[initandlisten] waiting for connections on port <port>
-where <port> is the port configured in /etc/mongod.conf, 27017 by default.
-
-3
-Stop MongoDB.
-
-As needed, you can stop the mongod process by issuing the following command:
-
-sudo service mongod stop
-4
-Restart MongoDB.
-
-Issue the following command to restart mongod:
-
-sudo service mongod restart
-5
-Begin using MongoDB.
-
-To help you start using MongoDB, MongoDB provides Getting Started Guides in various driver editions. See Getting Started for the available editions.
-
-Before deploying MongoDB in a production environment, consider the Production Notes document.
-
-Later, to stop MongoDB, press Control+C in the terminal where the mongod instance is running.
+sudo systemctl enable mongodb
+The MongoDB server now configured and running, and you can manage the MongoDB service using the systemctl command (e.g. sudo systemctl mongodb stop, sudo systemctl mongodb start).
